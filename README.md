@@ -1,126 +1,313 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Jungle Gaming — Backend Challenge
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API backend para gerenciamento de carteiras e processamento de transações de wagering, desenvolvida com **NestJS**, **TypeScript** e **PostgreSQL**, com foco em consistência financeira, idempotência e publicação confiável de eventos.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Tecnologias
 
-## Description
+- **NestJS 12** e **TypeScript**
+- **Bun** para instalação de dependências e execução de scripts
+- **PostgreSQL 16** e **MikroORM 7**
+- **Decimal.js** para cálculos monetários
+- **LocalStack** para emulação local do Amazon SQS
+- **Vitest** e **Supertest** para testes automatizados
+- **Docker Compose** para infraestrutura local
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Estrutura do projeto
 
-## Project setup
+```text
+src/
+├── modules/
+│   ├── wallet/       # Criação de carteiras e ledger financeiro
+│   ├── wagering/     # Transações, idempotência e referências pendentes
+│   └── outbox/       # Persistência e publicação de eventos no SQS
+├── shared/
+│   └── domain/value-objects/money.ts
+└── migrations/       # Evolução do esquema do PostgreSQL
 
-```bash
-$ bun install
+test/                 # Testes E2E
+docker/postgres/init/  # Inicialização do banco de testes
+localstack/init/      # Criação da fila SQS
 ```
 
-## Compile and run the project
+## Pré-requisitos
+
+- Docker com Docker Compose
+- Bun instalado
+
+A API é executada localmente; PostgreSQL e LocalStack são disponibilizados via Docker.
+
+## Configuração e execução
+
+### 1. Instalar as dependências
 
 ```bash
-# development
-$ bun run start
-
-# watch mode
-$ bun run start:dev
-
-# production mode
-$ bun run start:prod
+bun install
 ```
 
-## Run tests
+### 2. Configurar as variáveis de ambiente
+
+Crie um arquivo `.env` na raiz do projeto:
+
+```dotenv
+DATABASE_URL=postgresql://jungle:jungle123@localhost:5432/jungle_db
+AWS_REGION=us-east-1
+AWS_ACCESS_KEY_ID=test
+AWS_SECRET_ACCESS_KEY=test
+SQS_ENDPOINT=http://localhost:4566
+SQS_QUEUE_URL=http://localhost:4566/000000000000/wager-transactions
+```
+
+Os valores acima são **exclusivamente para desenvolvimento local**. O arquivo `.env` não deve ser versionado.
+
+Para os testes, utilize `.env.test` com os mesmos parâmetros de AWS/LocalStack e:
+
+```dotenv
+DATABASE_URL=postgresql://jungle:jungle123@localhost:5432/jungle_test_db
+PENDING_REFERENCE_WORKER_ENABLED=false
+```
+
+> O `.env.test` do projeto usa credenciais fictícias e um banco separado. Confirme as variáveis antes de executar migrations ou testes. A configuração do MikroORM respeita `DATABASE_URL` já definida no ambiente.
+
+### 3. Subir a infraestrutura
 
 ```bash
-# unit tests
-$ bun run test
-
-# e2e tests
-$ bun run test:e2e
-
-# test coverage
-$ bun run test:cov
+docker compose up -d
+docker compose ps
 ```
 
-## Deployment
+Os serviços `jungle-postgres` e `jungle-localstack` devem apresentar estado saudável (`healthy`).
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+- O PostgreSQL expõe a porta `5432` e utiliza o banco `jungle_db`.
+- O script `docker/postgres/init/01-create-test-db.sql` cria `jungle_test_db` **na primeira inicialização de um volume vazio**.
+- O script `localstack/init/01-create-queues.py` cria a fila SQS `wager-transactions`.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Para consultar as filas:
 
 ```bash
-$ bun install -g @nestjs/mau
-$ mau deploy
+docker exec jungle-localstack awslocal sqs list-queues
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+> A URL listada pelo LocalStack pode usar o domínio `sqs.us-east-1.localhost.localstack.cloud`, em vez de `localhost`. Verifique a compatibilidade da `SQS_QUEUE_URL` configurada com o ambiente em que a aplicação está sendo executada.
 
-## Observability
+### 4. Executar as migrations
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-This project is already instrumented. To connect it, run this and approve the code it prints at [observe.nestjs.com/link](https://observe.nestjs.com/link) - signing up for free if you have no account:
+No banco de desenvolvimento, com o `.env` configurado:
 
 ```bash
-$ npx @nestjs/observe link
+bunx mikro-orm migration:up
 ```
 
-It writes the app key and secret into `.env` and makes every `nest start` script (`start`, `start:dev`, `start:debug`) load it. In production, set `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment instead.
+No banco de testes, usando as variáveis de `.env.test`:
 
-Or do it by hand: create an application and an API key at [observe.nestjs.com](https://observe.nestjs.com), and set the pair as `OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET` in the environment the app runs in.
+```bash
+NODE_ENV=test bun --env-file=.env.test x mikro-orm migration:up
+```
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+Para consultar migrations pendentes no banco de testes:
 
-## Resources
+```bash
+NODE_ENV=test bun --env-file=.env.test x mikro-orm migration:pending
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+**Atenção:** scripts de inicialização do PostgreSQL não são reaplicados automaticamente quando o volume já existe. Não execute `docker compose down -v` em ambientes com dados que precisam ser preservados.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### 5. Iniciar a aplicação
 
-## Support
+```bash
+bun run start:dev
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+A URL padrão do NestJS, caso a porta não tenha sido alterada, é `http://localhost:3000`.
 
-## Stay in touch
+## API HTTP
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Criar carteira
 
-## License
+**`POST /wallets`**
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```json
+{
+  "playerId": "550e8400-e29b-41d4-a716-446655440000",
+  "currency": "BRL",
+  "initialBalance": "100.00"
+}
+```
+
+| Campo | Obrigatório | Validação |
+| --- | --- | --- |
+| `playerId` | Sim | UUID válido |
+| `currency` | Sim | Três letras maiúsculas, como `BRL` |
+| `initialBalance` | Não | String decimal não negativa, com até duas casas decimais |
+
+O valor de `initialBalance`, quando omitido, é tratado pelo caso de uso de criação da carteira.
+
+### Processar transação de wagering
+
+**`POST /wagering/transactions`**
+
+O header `Idempotency-Key` é **obrigatório** e deve conter um valor não vazio.
+
+```http
+POST /wagering/transactions
+Content-Type: application/json
+Idempotency-Key: provider-001-bet-001
+```
+
+Exemplo de payload para uma aposta (`BET`):
+
+```json
+{
+  "providerId": "provider-001",
+  "externalTransactionId": "bet-001",
+  "walletId": "550e8400-e29b-41d4-a716-446655440001",
+  "playerId": "550e8400-e29b-41d4-a716-446655440000",
+  "roundId": "round-001",
+  "gameId": "game-001",
+  "kind": "BET",
+  "amount": "30.00",
+  "currency": "BRL"
+}
+```
+
+| Campo | Obrigatório | Validação |
+| --- | --- | --- |
+| `providerId` | Sim | String |
+| `externalTransactionId` | Sim | String |
+| `walletId` | Sim | UUID válido |
+| `playerId` | Sim | UUID válido |
+| `roundId` | Sim | String |
+| `gameId` | Sim | String |
+| `kind` | Sim | `BET`, `WIN`, `LOSS`, `REFUND` ou `ROLLBACK` |
+| `amount` | Sim | String decimal, positiva, com exatamente duas casas decimais |
+| `currency` | Sim | Três letras maiúsculas |
+| `referenceExternalTransactionId` | Condicional | Obrigatória para `REFUND` e `ROLLBACK`; não permitida nas demais operações |
+
+Exemplo de reembolso (`REFUND`) que referencia a aposta anterior:
+
+```json
+{
+  "providerId": "provider-001",
+  "externalTransactionId": "refund-001",
+  "walletId": "550e8400-e29b-41d4-a716-446655440001",
+  "playerId": "550e8400-e29b-41d4-a716-446655440000",
+  "roundId": "round-001",
+  "gameId": "game-001",
+  "kind": "REFUND",
+  "amount": "30.00",
+  "currency": "BRL",
+  "referenceExternalTransactionId": "bet-001"
+}
+```
+
+> Os UUIDs e identificadores acima são ilustrativos. Para executar o exemplo, use o `walletId` retornado pela criação da carteira e mantenha o mesmo `playerId` e a mesma moeda.
+
+### Regras das operações
+
+| Operação | Comportamento |
+| --- | --- |
+| `BET` | Debita o valor da carteira |
+| `WIN` | Credita o valor na carteira |
+| `LOSS` | Registra a transação sem movimentar o saldo |
+| `REFUND` | Credita o valor de uma `BET` processada |
+| `ROLLBACK` de `BET` | Credita o valor anteriormente debitado |
+| `ROLLBACK` de `WIN` ou `REFUND` | Debita o valor anteriormente creditado |
+
+As compensações (`REFUND` e `ROLLBACK`) exigem uma referência válida, processada, do mesmo provedor, jogador, carteira, rodada, jogo e moeda. O valor da compensação deve ser igual ao da transação referenciada; **compensações parciais não são suportadas**. Uma transação não pode receber duas compensações diretas processadas.
+
+### Idempotência e respostas
+
+A API identifica transações por provedor, chave de idempotência e identificador externo. Repetir uma requisição com a mesma identidade e conteúdo não duplica a movimentação financeira; a resposta indica `replayed: true`.
+
+Exemplo ilustrativo de resposta de uma transação processada:
+
+```json
+{
+  "transactionId": "550e8400-e29b-41d4-a716-446655440002",
+  "status": "PROCESSED",
+  "balance": "70.00",
+  "version": 1,
+  "replayed": false
+}
+```
+
+Os principais comportamentos HTTP observáveis nos controllers e no caso de uso são:
+
+| HTTP | Situação |
+| --- | --- |
+| `201` | Requisição POST concluída pelo controller NestJS, inclusive quando retorna uma transação pendente |
+| `400` | Header de idempotência ausente, referência inválida para a operação ou valor inválido |
+| `404` | Carteira não encontrada |
+| `409` | Conflito de idempotência, jogador/moeda divergente ou referência incompatível em determinados fluxos |
+| `422` | Transação com status `REJECTED`, por exemplo saldo insuficiente |
+
+A resposta de processamento pode ter status de domínio `PROCESSED`, `PENDING_REFERENCE`, `REJECTED` ou `FAILED`, dependendo do fluxo. Os detalhes de validação de payload dependem da configuração global de validação do NestJS.
+
+## Consistência financeira
+
+- Operações financeiras executadas dentro de transações do PostgreSQL.
+- Bloqueio pessimista (`PESSIMISTIC_WRITE`) da carteira antes de consultar e atualizar seu saldo.
+- Cálculos com `Decimal.js`, evitando operações monetárias com ponto flutuante nativo.
+- Proteção contra saldo negativo em operações de débito.
+- Registro de débitos e créditos no ledger, incluindo saldo anterior e posterior.
+- Incremento de versão da carteira nas movimentações de saldo.
+- Persistência de evento na Outbox na mesma transação de banco da operação financeira.
+
+A operação `LOSS` não altera o saldo e não gera lançamento de débito/crédito no ledger.
+
+## Referências pendentes e reprocessamento
+
+Quando um `REFUND` ou `ROLLBACK` referencia uma transação ainda inexistente, o registro pode ser armazenado com status `PENDING_REFERENCE` para processamento posterior.
+
+O processador de referências pendentes implementa:
+
+- Backoff exponencial, começando em **10 segundos** e limitado a **5 minutos**.
+- Limite de **10 tentativas**.
+- Expiração após **24 horas**.
+- Marcação de falha com códigos como `REFERENCE_RETRY_EXHAUSTED` e `REFERENCE_TTL_EXPIRED`.
+- Seleção de lotes com `FOR UPDATE SKIP LOCKED`, reduzindo disputa entre workers na etapa de reivindicação.
+
+A seleção concorrente e a idempotência contribuem para a segurança do reprocessamento; não representam, por si só, uma garantia de execução exatamente uma vez em cenários distribuídos.
+
+## Transactional Outbox e SQS
+
+Ao processar uma transação financeira, a aplicação persiste um evento `wager.transaction.processed` na tabela `outbox_events`. Um serviço separado é responsável pela publicação assíncrona no SQS, permitindo novas tentativas quando a publicação falha.
+
+A infraestrutura local usa o LocalStack para disponibilizar a fila `wager-transactions`. A persistência do evento na Outbox e a publicação na fila são etapas separadas, evitando depender da disponibilidade imediata do SQS durante a atualização financeira.
+
+## Testes e qualidade
+
+Execute:
+
+```bash
+bunx tsc --noEmit
+bun run lint
+bun run test
+bun run test:e2e
+```
+
+**Última validação compartilhada (29/10/2026):**
+
+| Verificação | Resultado |
+| --- | --- |
+| TypeScript | Sem erros |
+| Oxlint | 0 erros e 0 warnings |
+| Testes E2E | **34 aprovados em 4 suítes** |
+| Migrations | **5 aplicadas** com sucesso em banco temporário vazio |
+| Reexecução das migrations | Sem alterações pendentes |
+| LocalStack | Script de criação da fila executado com sucesso |
+
+Suítes E2E:
+
+- `test/wagering.e2e-spec.ts`: 23 testes.
+- `test/outbox.e2e-spec.ts`: 4 testes.
+- `test/pending-reference-worker.e2e-spec.ts`: 1 teste.
+- `test/pending-reference-retry.e2e-spec.ts`: 6 testes.
+
+> A suíte de Outbox simula intencionalmente uma falha `SQS unavailable` para validar o tratamento de erros. Esse log pode aparecer mesmo quando os testes passam.
+
+## Notas para avaliação
+
+- A criação automática de `jungle_test_db` depende da inicialização de um volume PostgreSQL novo. Em volumes preexistentes, crie o banco separadamente se necessário.
+- Execute migrations explicitamente no banco de desenvolvimento **e** no banco de testes antes de rodar os testes E2E em uma instalação nova.
+- Não use credenciais de produção nos arquivos `.env` ou `.env.test`.
+- A configuração e as regras descritas aqui refletem o código e as verificações realizadas; a aderência integral ao enunciado original do desafio deve ser conferida separadamente.
