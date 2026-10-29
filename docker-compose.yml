@@ -4,33 +4,45 @@ services:
     image: postgres:16-alpine
     container_name: jungle-postgres
     restart: unless-stopped
+
     environment:
       POSTGRES_USER: jungle
       POSTGRES_PASSWORD: jungle123
       POSTGRES_DB: jungle_db
+
     ports:
       - "5432:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U jungle -d jungle_db"]
+      test:
+        - CMD-SHELL
+        - "pg_isready -U jungle -d jungle_db"
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
   localstack:
     image: localstack/localstack:4.6
     container_name: jungle-localstack
     restart: unless-stopped
+
     environment:
       SERVICES: sqs
       AWS_DEFAULT_REGION: us-east-1
       PERSISTENCE: "1"
+
     ports:
       - "4566:4566"
+
     volumes:
       - localstack_data:/var/lib/localstack
-      - ./localstack/init:/etc/localstack/init/ready.d
+      - ./localstack/init:/etc/localstack/init/ready.d:ro
+
     healthcheck:
       test:
         - CMD-SHELL

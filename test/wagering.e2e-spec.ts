@@ -330,7 +330,9 @@ describe('Wagering API (E2E)', () => {
             createBet(`concurrent-bet-${randomUUID()}`),
         ]);
 
-        const statuses = [first.status, second.status].sort();
+        const statuses = [first.status, second.status].sort(
+            (a, b) => a - b,
+        );
 
         expect(statuses).toEqual([201, 422]);
 
@@ -624,7 +626,9 @@ describe('Wagering API (E2E)', () => {
             sendRefund(`refund-${randomUUID()}`),
         ]);
 
-        expect([first.status, second.status].sort()).toEqual([
+        expect(
+            [first.status, second.status].sort((a, b) => a - b),
+        ).toEqual([
             201,
             409,
         ]);
@@ -1245,7 +1249,7 @@ describe('Wagering API (E2E)', () => {
                 ),
             ]);
 
-            expect([first.status, second.status].sort()).toEqual([
+            expect([first.status, second.status].sort((a, b) => a - b)).toEqual([
                 201,
                 409,
             ]);
