@@ -7,42 +7,25 @@ import {
 } from '@nestjs/common';
 import { MikroORM } from '@mikro-orm/postgresql';
 import { LockMode } from '@mikro-orm/core';
-import {
-    SQSClient,
-    SendMessageCommand,
-} from '@aws-sdk/client-sqs';
 
 import {
     OutboxEventEntity,
     OutboxEventStatus,
 } from '../infrastructure/persistence/outbox-event.entity.js';
+import { SqsPublisherService } from '../infrastructure/sqs-publisher.service.js';
 
 @Injectable()
 export class OutboxPublisherService
     implements OnModuleInit, OnModuleDestroy {
-    private readonly logger = new Logger(
-        OutboxPublisherService.name,
-    );
-
-    private readonly sqs = new SQSClient({
-        region: process.env.AWS_REGION ?? 'us-east-1',
-        endpoint:
-            process.env.SQS_ENDPOINT ?? 'http://localhost:4566',
-        credentials: {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'test',
-            secretAccessKey:
-                process.env.AWS_SECRET_ACCESS_KEY ?? 'test',
-        },
-    });
-
-    private readonly queueUrl =
-        process.env.SQS_QUEUE_URL ??
-        'http://localhost:4566/000000000000/wager-transactions';
+    private readonly logger = new Logger(OutboxPublisherService.name);
 
     private timer?: ReturnType<typeof setInterval>;
     private processing = false;
 
-    constructor(private readonly orm: MikroORM) { }
+    constructor(
+        private readonly orm: MikroORM,
+        private readonly sqsPublisher: SqsPublisherService,
+    ) { }
 
     onModuleInit() {
         if (process.env.NODE_ENV === 'test') {
@@ -61,8 +44,6 @@ export class OutboxPublisherService
         if (this.timer) {
             clearInterval(this.timer);
         }
-
-        this.sqs.destroy();
     }
 
     async publishPending() {
@@ -98,19 +79,13 @@ export class OutboxPublisherService
                             return;
                         }
 
-                        await this.sqs.send(
-                            new SendMessageCommand({
-                                QueueUrl: this.queueUrl,
-                                MessageBody: JSON.stringify({
-                                    eventId: locked.id,
-                                    eventType: locked.eventType,
-                                    aggregateId: locked.aggregateId,
-                                    payload: locked.payload,
-                                    occurredAt:
-                                        locked.createdAt.toISOString(),
-                                }),
-                            }),
-                        );
+                        await this.sqsPublisher.publish({
+                            eventId: locked.id,
+                            eventType: locked.eventType,
+                            aggregateId: locked.aggregateId,
+                            payload: locked.payload,
+                            occurredAt: locked.createdAt.toISOString(),
+                        });
 
                         locked.status = OutboxEventStatus.PUBLISHED;
                         locked.publishedAt = new Date();
@@ -118,16 +93,12 @@ export class OutboxPublisherService
 
                         await tx.flush();
 
-                        this.logger.log(
-                            `Published outbox event ${locked.id}`,
-                        );
+                        this.logger.log(`Published outbox event ${locked.id}`);
                     });
                 } catch (error) {
                     this.logger.error(
                         `Failed to publish event ${event.id}`,
-                        error instanceof Error
-                            ? error.stack
-                            : String(error),
+                        error instanceof Error ? error.stack : String(error),
                     );
 
                     await this.orm.em.transactional(async (tx) => {
@@ -137,9 +108,7 @@ export class OutboxPublisherService
                             { lockMode: LockMode.PESSIMISTIC_WRITE },
                         );
 
-                        if (
-                            pending?.status === OutboxEventStatus.PENDING
-                        ) {
+                        if (pending?.status === OutboxEventStatus.PENDING) {
                             pending.attempts += 1;
                             await tx.flush();
                         }

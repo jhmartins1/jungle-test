@@ -90,6 +90,19 @@ export class WagerTransactionEntity {
     @Property({ type: 'datetime', nullable: true })
     processedAt?: Date;
 
-    @Property({ type: 'datetime', onCreate: () => new Date() })
+    @Property({ type: 'integer', default: 0 })
+    retryAttempts?: number = 0;
+
+    @Index()
+    @Property({ type: 'datetime', nullable: true })
+    nextRetryAt?: Date;
+
+    @Property({ type: 'datetime', nullable: true })
+    lastRetryAt?: Date;
+
+    @Property({
+        type: 'datetime',
+        onCreate: () => new Date(),
+    })
     createdAt: Date = new Date();
 }

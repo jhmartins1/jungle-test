@@ -340,6 +340,40 @@
           "enumItems": [],
           "mappedType": "string"
         },
+        "last_retry_at": {
+          "name": "last_retry_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
+        "next_retry_at": {
+          "name": "next_retry_at",
+          "type": "timestamptz(6)",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": true,
+          "unique": false,
+          "length": 6,
+          "precision": null,
+          "scale": null,
+          "default": null,
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "datetime"
+        },
         "payload_hash": {
           "name": "payload_hash",
           "type": "varchar(255)",
@@ -442,6 +476,23 @@
           "enumItems": [],
           "mappedType": "uuid"
         },
+        "retry_attempts": {
+          "name": "retry_attempts",
+          "type": "int",
+          "unsigned": false,
+          "autoincrement": false,
+          "primary": false,
+          "nullable": false,
+          "unique": false,
+          "length": null,
+          "precision": null,
+          "scale": null,
+          "default": "0",
+          "comment": null,
+          "collation": null,
+          "enumItems": [],
+          "mappedType": "integer"
+        },
         "round_id": {
           "name": "round_id",
           "type": "varchar(255)",
@@ -505,6 +556,16 @@
           "primary": false,
           "unique": true,
           "where": "(reference_transaction_id IS NOT NULL) AND ((status)::text = 'PROCESSED'::text) AND ((kind)::text = ANY ((ARRAY['REFUND'::character varying, 'ROLLBACK'::character varying])::text[]))"
+        },
+        {
+          "columnNames": [
+            "next_retry_at"
+          ],
+          "composite": false,
+          "constraint": false,
+          "keyName": "wager_transactions_next_retry_at_index",
+          "primary": false,
+          "unique": false
         },
         {
           "columnNames": [
